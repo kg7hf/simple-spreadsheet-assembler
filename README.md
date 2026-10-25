@@ -1,8 +1,9 @@
 # Simple Spreadsheet Assembler
 
 An educational project that uses LibreOffice Calc to assemble a small native
-Windows x86 program. Planned GitHub repository name: `simple-spreadsheet-assembler`.
-The lessons are intended to accompany a LinkedIn article about the technique.
+Windows x86 program. The repository is
+[simple-spreadsheet-assembler](https://github.com/kg7hf/simple-spreadsheet-assembler).
+The lessons accompany an [article](ARTICLE.md) about the technique.
 
 Start with [Lesson 1: assemble a Windows program with LibreOffice Calc](LESSON-1.md)
 for the full spreadsheet walkthrough, manual CSV export, conversion, and exit-code experiment.

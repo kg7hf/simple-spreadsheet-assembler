@@ -98,6 +98,48 @@ The code begins at **file offset 512**, which is **worksheet row 514** because t
 
 The instruction bytes in this sheet link to the Assembler sheet. The surrounding headers and import records are supplied as a fixed template.
 
+### What the headers tell Windows
+
+**PE** stands for **Portable Executable**, the Windows executable file format.
+The headers describe the processor, entry point, sections, and imports. They guide
+the Windows loader; they are not instructions that switch the CPU into protected mode.
+The Image sheet represents the file on disk, whose layout differs from the loaded
+memory image. See [Microsoft's PE format reference](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format).
+
+For this workbook's fixed template, the relevant fields and records are:
+
+| Structure | What this example contains |
+|---|---|
+| MZ header | Starts at file offset 0; the field at `0x3C` points to the PE signature at `0x80` |
+| PE signature | Four bytes: `50 45 00 00` |
+| COFF file header | Machine `0x014C` (32-bit x86) and two sections |
+| PE32 optional header | Image base `0x00400000`, entry RVA `0x1000`, console subsystem, and an import-directory location |
+| Section table | Describes `.text` and `.idata`, their file offsets, memory placement, sizes, and access flags |
+| Import records | Name `KERNEL32.dll` and `ExitProcess`; reserve a table entry for the resolved function address |
+
+Despite its name, the optional header is required for this executable. The template
+includes the MZ identification and pointer but does not supply a working DOS stub
+program. It is intended to run under Windows.
+
+Here is the actual layout used by the workbook. All offsets and addresses below are hexadecimal:
+
+| Contents | File offset | RVA when loaded | Virtual address at the fixed image base |
+|---|---|---|---|
+| Headers | `0000` | `0000` | `00400000` |
+| Code section `.text` | `0200` | `1000` | `00401000` |
+| Import section `.idata` | `0400` | `2000` | `00402000` |
+| ExitProcess import address table entry | `0430` | `2030` | `00402030` |
+
+RVA means **relative virtual address**: the address relative to the loaded image's
+base. Thus our first instruction is at byte 512 in the file, but at address
+`0x00401000` when loaded at this template's fixed base. The file sections are aligned
+to 512 bytes; their memory placement is aligned to 4,096 bytes. This accounts for
+the different offsets and some of the padding.
+
+The `CALL` instruction reads the function address from `0x00402030`. Windows fills
+that import table entry before our code runs. The headers and import records make
+that possible; the instruction stream alone would not.
+
 ## 4. Save the workbook, then manually export the CSV
 
 First save **assembler.ods** using **Ctrl+S**. Keep this ODS file: it preserves the formulas and both worksheets.
