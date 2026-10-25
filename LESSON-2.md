@@ -148,10 +148,12 @@ if ($LASTEXITCODE -ne 0) { throw 'Calc export failed.' }
 The script also requires exactly one CSV in the new export folder. Then it invokes:
 
 ```powershell
-& "$PSScriptRoot\hex-to-exe.ps1" -Csv $csv[0].FullName -Output $Output
+& "$PSScriptRoot\hex-to-exe.ps1" -Csv $csv[0].FullName -Output $Output -ExpectedBytes $ExpectedBytes
 ```
 
 This is the converter from lesson one. It checks the byte rows and writes them into the executable. It does not interpret assembly mnemonics or create the Windows headers. Those bytes still come from the workbook.
+
+`ExpectedBytes` defaults to 1536 for this workbook. The parameter lets later workbooks use a larger executable image while keeping the byte-count check.
 
 That call is the end of the build script. There is no command in it to run `program.exe`.
 
@@ -198,6 +200,10 @@ With the same workbook input and template, the manual and automated workflows pr
 | An output filename was customized | Run that filename, and check the converter's full destination path |
 
 The build script removes the manual export steps. The spreadsheet and each generated CSV remain available to inspect when a result differs from the expected value.
+
+## Next: console input and subroutines
+
+[Lesson 3](LESSON-3.md) uses a new workbook to read two numbers from the console, add them, and print the result. It introduces labels, relative calls and jumps, and subroutines for reading and printing decimal numbers. The same build script exports and converts the workbook; Calc resolves the labels and encodes the instructions.
 
 ## Related files
 
