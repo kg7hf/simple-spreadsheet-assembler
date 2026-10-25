@@ -1,118 +1,109 @@
 # Before the assembler existed: bringing up a DSP with Excel
 
-In the early 2000s, I used Microsoft Excel as an assembler while bringing up new digital signal processors.
+Here is a story from DSP bring-up in the early 2000s.
 
-These processors had their own instruction sets, and we were working before an assembler or compiler port was available. We did not need a complete development environment to begin. We needed enough instructions to do a few specific things: loop, jump, and toggle I/O pins through memory-mapped registers.
+I used Excel when I was bringing up new digital signal processors that had their own instruction sets. The tools were still being developed. We did not want or need a full assembler for those first tests. We needed enough to do a few things: loop, jump, and toggle I/O pins controlled by memory-mapped registers.
 
-We were also writing the supporting software. There was no existing bootloader or memory-dump tool to assume would handle the difficult parts for us.
+We were writing the debugger. The team down the hall was writing the assembler and disassemblers. In the building across town, another team was writing the Verilog for the DSP ASICs.
 
-A spreadsheet was useful because the immediate problem was small and concrete. Take the instruction format, put the required values into the right fields, and produce the bit patterns the processor would execute.
+The spreadsheet calculated instruction words from the fields in the instruction set. That let us prepare the small bring-up programs while the assembler was still being developed.
 
-We were trying to get hardware running. Excel was one of the tools that helped us do it.
+## A spreadsheet assembler for the PC
 
-## Why revisit this now?
+I wanted to turn that experience into an exercise for engineers starting out today. I also wanted to revisit the executable format. I did a lot of x86 work roughly 30 years ago, and I needed a refresher on some of those details.
 
-I think this makes a useful exercise for engineers starting out today.
+I built this example with LibreOffice Calc. It produces a native Windows x86 executable. The workbook uses fixed instruction templates and an editable operand. It does not parse arbitrary assembly source or resolve labels.
 
-Modern development tools do a tremendous amount of work for us. That is valuable, but it can also put several layers between a line of source code and the bytes a processor actually executes.
+This version uses CSV and a simple script to convert hex values into bytes. That is close to what I remember doing during the DSP work. The original export may have used commas or spaces between values; the process was the same. This example uses x86 instructions in place of the original DSP instruction set.
 
-A spreadsheet makes that relationship visible. You can change a number, inspect the formula, and watch the corresponding instruction bytes change. There is very little room for mystery.
+## Set the exit code
 
-I also wanted to revisit it for myself. I did a lot of x86 work roughly 30 years ago, and some of the executable-file details deserved a refresher.
-
-So I have put together a small teaching project using **LibreOffice Calc**, with a native Windows x86 program as the result.
-
-It is a modern demonstration of the technique, not a reconstruction of the original DSP or its instruction set. I also no longer remember the exact export procedure we used back then. This example makes that step explicit.
-
-## The first program exits with 42
-
-The starting point is deliberately modest: a program that calls Windows' `ExitProcess` function with a number we choose.
-
-The workbook contains a few fixed instruction templates. In the first lesson, we change the operand to 42, and Calc produces these bytes for `PUSH 42`:
+The program calls Windows' `ExitProcess` function with the value entered in cell B4. For an input of 42, Calc produces these bytes for `PUSH 42`:
 
 ```text
 68 2A 00 00 00
 ```
 
-`68` selects the instruction form. The following four bytes contain the number 42 in little-endian order.
+`68` selects the instruction form. The following four bytes contain 42 in little-endian order.
 
-The program then calls `ExitProcess` through its import address table. It prints nothing. We run it from PowerShell and inspect the result:
+![Calc Assembler sheet with B4 set to 42 and the decimal and hexadecimal instruction bytes](images/lesson1-img1.png)
 
-```powershell
-.\program.exe
-$LASTEXITCODE
-```
+*The Assembler sheet. B4 contains 42; the first instruction encodes as 68 2A 00 00 00. The capture was taken after Save As CSV, so the title reads image.csv. Use assembler.ods for further edits.*
 
-PowerShell displays:
+The next instruction calls `ExitProcess` through the import address table. The program prints nothing. PowerShell reports its exit code.
+
+## What the Image sheet contains
+
+The Image sheet contains the complete sequence of bytes written to the executable file. Each data row represents one byte. The instruction bytes link to the calculations on the Assembler sheet. The Windows headers and import records come from a fixed template.
+
+This template has 12 bytes of code in a 1,536-byte file. Headers, import records, and section padding account for the remaining space.
+
+![Calc Image sheet showing the instruction bytes at file offsets 512 through 523](images/lesson1-img2.png)
+
+*The code starts at worksheet row 514, file offset 512. Column B is decimal; column C is hex. At row 515, the adjacent values 42 and 2A represent the same byte.*
+
+## What PE headers do
+
+**PE means Portable Executable.** Its headers describe the target processor, entry point, section layout, and imported functions. Windows uses this information to load the program. The headers do not switch the CPU into protected mode.
+
+The file starts with an `MZ` header containing a pointer to the `PE` signature. The section table connects file offsets to relative virtual addresses. The import records identify functions such as `ExitProcess`. Microsoft's [PE format reference](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format) documents the structures.
+
+In this template, the first instruction is at file offset `0x200`. Its relative virtual address is `0x1000`. With the fixed image base of `0x00400000`, execution starts at virtual address `0x00401000`.
+
+The file offset and loaded address are different. The headers describe that mapping. Renaming raw instruction bytes to `.exe` would not supply it.
+
+## Export and run it manually
+
+The first lesson covers each step:
+
+1. Open the ODS workbook and set the exit-code input.
+2. Inspect the formulas and calculated instruction bytes.
+3. Save the workbook, then export the Image sheet as UTF-8 CSV.
+4. Run `hex-to-exe.ps1` to convert the exported hex values into bytes.
+5. Run the executable and check `$LASTEXITCODE`.
+
+Calc performs the instruction encoding. The converter checks the CSV rows and writes the bytes. The text `2A` becomes one byte with value `0x2A`.
+
+The transcripts use `C:\work\simple-spreadsheet-assembler` as the example folder. Paths are shortened for readability; `export-<id>` represents the build's unique export directory.
 
 ```text
+PS C:\work\simple-spreadsheet-assembler> .\hex-to-exe.ps1 -Csv .\image.csv -Output .\program.exe
+Wrote 1536 bytes to C:\work\simple-spreadsheet-assembler\program.exe
+PS C:\work\simple-spreadsheet-assembler> .\program.exe
+PS C:\work\simple-spreadsheet-assembler> $LASTEXITCODE
 42
 ```
 
-Change the spreadsheet input to 9, repeat the export and conversion, and the program returns 9 instead. We tested that on Windows, along with other input values.
+*Manual conversion and execution on Windows. The converter writes program.exe. The next command runs it. $LASTEXITCODE reports 42.*
 
-It is a small result, but it demonstrates the entire path from a spreadsheet cell to executing machine code.
+[Lesson one: assemble a Windows program with LibreOffice Calc](https://github.com/kg7hf/simple-spreadsheet-assembler/blob/main/LESSON-1.md) walks through the workbook, export options, and executable layout.
 
-## What is the “Image” sheet?
+## Automate the export and conversion
 
-Here, *image* means the complete sequence of bytes we will write to the executable file. Each data row in the Image sheet represents one output byte. It is not a screenshot, and it is more than the instruction stream.
+The second lesson introduces `build.ps1`. It loads the saved workbook in headless LibreOffice, recalculates the formulas, exports Image, and invokes the same converter.
 
-Our example has 12 bytes of code, but the complete file is 1,536 bytes:
+The executable is still run separately. In the run below, the saved workbook input was 7. The resulting program returned 7.
 
-- 512 bytes for headers and padding.
-- 512 bytes for the code section and its padding.
-- 512 bytes for import records and their padding.
+```text
+PS C:\work\simple-spreadsheet-assembler> .\build.ps1
+convert C:\work\simple-spreadsheet-assembler\assembler.ods as a Calc document using filter : Text - txt - csv (StarCalc):44,34,76,1,,0,false,true,false,false,false,2
+Writing sheet Image -> C:\work\simple-spreadsheet-assembler\artifacts\export-<id>\assembler-Image.csv
+Wrote 1536 bytes to C:\work\simple-spreadsheet-assembler\program.exe
+PS C:\work\simple-spreadsheet-assembler> .\program.exe
+PS C:\work\simple-spreadsheet-assembler> $LASTEXITCODE
+7
+```
 
-Those sizes belong to this particular teaching template. The instruction bytes are linked to the calculations on the Assembler sheet. The surrounding executable structure is supplied as a fixed template.
+*Automated build with an input of 7. The CSV remains available under artifacts. The final commands run the executable and read its exit code.*
 
-## Why does Windows need PE headers?
+[Lesson two: automate the build with PowerShell](https://github.com/kg7hf/simple-spreadsheet-assembler/blob/main/LESSON-2.md) explains the script and its intermediate files.
 
-**PE means Portable Executable.** The headers describe the target processor, entry point, section layout, and imported functions. They give the Windows loader the information needed to arrange the program in memory. They do not switch the CPU into protected mode.
+## Start with the instructions needed for the test
 
-The file starts with an `MZ` header containing a pointer to the `PE` signature. A section table connects file offsets to relative virtual addresses. Imports let Windows resolve functions such as `ExitProcess`. Microsoft's [PE format reference](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format) documents these structures.
+During DSP bring-up, the immediate goal was to exercise the hardware. A few instruction encodings were enough to start. The rest of the tooling could follow as it was needed.
 
-In our specific example, the first instruction is at file offset `0x200`, but its relative virtual address is `0x1000`. With the template's image base of `0x00400000`, execution starts at virtual address `0x00401000`.
+This example follows that approach. Change an operand, inspect the bytes, and check the result on Windows. The workbook and CSV leave the intermediate values available for inspection.
 
-That distinction helped me: the position of a byte in the file is not necessarily its address when loaded into memory.
+The source and both lessons are in [Simple Spreadsheet Assembler on GitHub](https://github.com/kg7hf/simple-spreadsheet-assembler).
 
-The familiar x86 instruction bytes are still there. We have also supplied the information Windows needs to load and start them. Renaming raw instruction bytes to `.exe` would not supply that information.
-
-## First do the steps manually
-
-The first lesson walks through the full process:
-
-1. Open the ODS workbook in Calc and change the exit-code input.
-2. Inspect the instruction formulas and calculated bytes.
-3. Save the workbook, then manually export the Image sheet as UTF-8 CSV.
-4. Run a small PowerShell converter to write those hex values as actual bytes.
-5. Run the executable and check its exit code.
-
-The converter is deliberately separate. Calc performs the instruction encoding; the converter checks the exported rows and writes the byte values to disk.
-
-Saving the text `2A` is not the same as writing the single byte `0x2A`. Making that boundary explicit is part of the exercise.
-
-[Read lesson one: assemble a Windows program with LibreOffice Calc](https://github.com/kg7hf/simple-spreadsheet-assembler/blob/main/LESSON-1.md).
-
-## Then automate the steps we understand
-
-The second lesson introduces `build.ps1`. After we edit and save the workbook, the script opens it in headless LibreOffice, recalculates the formulas, exports the Image sheet, and invokes the same converter.
-
-We still run the generated program ourselves and check its exit code.
-
-That order matters to me. First understand the files and transformations. Then automate the repetitive work without losing sight of what it does.
-
-[Read lesson two: automate the build with PowerShell](https://github.com/kg7hf/simple-spreadsheet-assembler/blob/main/LESSON-2.md).
-
-## Enough tooling to take the next step
-
-This is not a general-purpose x86 assembler. It does not parse arbitrary mnemonics or resolve labels. It begins with fixed instruction templates, visible formulas, and one editable operand.
-
-That limited scope is intentional. During the original DSP bring-up work, we needed enough capability to perform the next hardware experiment. We did not have to finish an entire toolchain before learning something useful about the processor.
-
-The same principle makes a good teaching exercise: choose a small result, make each transformation inspectable, and verify that the hardware does what the bytes say.
-
-The workbook, scripts, and both lessons are available here:
-
-[Simple Spreadsheet Assembler on GitHub](https://github.com/kg7hf/simple-spreadsheet-assembler).
-
-What was the smallest or most unexpected tool you used to get a new piece of hardware running?
+Questions about the instruction encoding, file format, or export steps are welcome.

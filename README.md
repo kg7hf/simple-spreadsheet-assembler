@@ -26,7 +26,7 @@ Start with 42. The supported input range for this lesson is whole numbers 0–25
 $LASTEXITCODE
 ```
 
-The expected result is `42`. To try `7`, reopen **assembler.ods**, change B4,
+The expected result is `42`. To try `9`, reopen **assembler.ods**, change B4,
 and repeat the manual CSV export and conversion. Edit the ODS workbook, not the CSV:
 CSV stores values from one sheet and does not retain the assembler's formulas.
 The executable prints no text; PowerShell displays its exit code.
@@ -38,7 +38,7 @@ Read [Lesson 2: automate the build with PowerShell](LESSON-2.md) for the guided
 walkthrough of the build script, its intermediate files, and its exit-code check.
 
 After completing the manual workflow, use `build.ps1` to automate the Calc export
-and hex-to-byte conversion. Open the ODS workbook, change B4, and save it, then run:
+and hex-to-byte conversion. Open the ODS workbook, set B4 to `7`, and save it, then run:
 
 ```powershell
 .\build.ps1
@@ -46,7 +46,7 @@ and hex-to-byte conversion. Open the ODS workbook, change B4, and save it, then 
 $LASTEXITCODE
 ```
 
-The script opens the saved workbook in headless LibreOffice, recalculates it,
+The expected exit code is `7`. The script opens the saved workbook in headless LibreOffice, recalculates it,
 exports Image to CSV, and invokes the same `hex-to-exe.ps1` converter used in
 lesson one. The resulting executable has the same bytes for the same input.
 It does not run the executable; the last two commands remain explicit.
@@ -89,7 +89,7 @@ and understood the individual steps in lesson one.
 
 Changing a file's encoding or extension alone does not convert ASCII hex to those
 byte values. This example uses an explicit, inspectable hex-to-byte conversion;
-it does not reconstruct the historical early-2000s export method.
+it follows the same general workflow recalled from the early-2000s DSP work.
 
 ## Scope
 

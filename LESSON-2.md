@@ -1,8 +1,8 @@
 # Lesson 2: automate the build with PowerShell
 
-In [lesson one](LESSON-1.md), we performed every step ourselves: edit a value in Calc, recalculate, save the Image sheet as CSV, convert its hex values to bytes, and run the resulting executable.
+[Lesson one](LESSON-1.md) covered the manual workflow: edit a value in Calc, recalculate, save Image as CSV, convert the hex values to bytes, and run the executable.
 
-Now we will automate the repeated export and conversion work with **build.ps1**. The spreadsheet still assembles the instructions. The script coordinates the tools we already used.
+**build.ps1** automates the recalculation, export, and conversion. Calc still encodes the instructions. The script runs LibreOffice and the same converter used in lesson one.
 
 ## 1. Map the manual steps to the automated build
 
@@ -16,25 +16,21 @@ Now we will automate the repeated export and conversion work with **build.ps1**.
 | Run program.exe | You still run it explicitly |
 | Inspect the exit code | You still read `$LASTEXITCODE` |
 
-There is still a CSV file between the spreadsheet and the executable. Automation changes who performs the steps, not the file formats or instruction encoding.
+There is still a CSV file between the spreadsheet and the executable. The script performs the same export and conversion steps.
 
 ## 2. Edit and save the source workbook
 
 Open **assembler.ods** in Calc. If you still have **image.csv** open from lesson one, reopen the ODS file first. The CSV is an exported snapshot, not the source workbook.
 
-Select **Assembler**, enter **42** in **B4**, and press **Enter**. Save the workbook with **Ctrl+S**. You can use **Ctrl+Shift+F9** to inspect the recalculated values in the visible workbook, but the build will also recalculate its own loaded copy.
+Select **Assembler**, enter **7** in **B4**, and press **Enter**. Save the workbook with **Ctrl+S**. You can use **Ctrl+Shift+F9** to inspect the recalculated values in the visible workbook, but the build will also recalculate its own loaded copy.
 
-**Saving is essential.** The script reads the workbook from disk. It cannot see an edit that exists only in your open Calc window.
+Save before building. The script reads the workbook from disk, so unsaved edits are not included.
 
 You do not need to select Image or manually save a CSV this time. Keep the worksheet order unchanged: the script expects Image to be the second sheet.
 
 ## 3. Build the executable
 
-Open PowerShell in the project folder:
-
-```powershell
-cd D:\source\repos\misc-projects\simple-excel-assembler
-```
+Open PowerShell in your project folder. These examples use `C:\work\simple-spreadsheet-assembler`; substitute your own path. In the transcript, `export-<id>` abbreviates the unique export directory created by the build.
 
 Run:
 
@@ -47,7 +43,7 @@ LibreOffice will load the saved workbook in **headless mode**, meaning it perfor
 The output should mention a CSV export of the Image sheet, followed by a message like:
 
 ```text
-Wrote 1536 bytes to D:\source\repos\misc-projects\simple-excel-assembler\program.exe
+Wrote 1536 bytes to C:\work\simple-spreadsheet-assembler\program.exe
 ```
 
 The export directory name changes with each build. The default executable destination stays the same.
@@ -66,10 +62,22 @@ $LASTEXITCODE
 The expected result is:
 
 ```text
-42
+7
 ```
 
-The executable itself prints nothing. PowerShell displays its exit code when you evaluate `$LASTEXITCODE`.
+The executable prints nothing. PowerShell displays its exit code when you evaluate `$LASTEXITCODE`.
+
+```text
+PS C:\work\simple-spreadsheet-assembler> .\build.ps1
+convert C:\work\simple-spreadsheet-assembler\assembler.ods as a Calc document using filter : Text - txt - csv (StarCalc):44,34,76,1,,0,false,true,false,false,false,2
+Writing sheet Image -> C:\work\simple-spreadsheet-assembler\artifacts\export-<id>\assembler-Image.csv
+Wrote 1536 bytes to C:\work\simple-spreadsheet-assembler\program.exe
+PS C:\work\simple-spreadsheet-assembler> .\program.exe
+PS C:\work\simple-spreadsheet-assembler> $LASTEXITCODE
+7
+```
+
+*This run used a saved workbook input of 7. build.ps1 exported Image and invoked the converter. The next commands ran program.exe and read its exit code. Lesson one used 42; the different result here reflects the changed input.*
 
 Now change **B4** to **9** in Calc, press Enter, and save. Repeat the three commands:
 
@@ -79,7 +87,7 @@ Now change **B4** to **9** in Calc, press Enter, and save. Repeat the three comm
 $LASTEXITCODE
 ```
 
-You should see **9**. You have repeated the experiment from lesson one without visiting the CSV export dialog or invoking the converter yourself.
+The next run should return **9**. The build script handled CSV export and conversion.
 
 ## 5. Read the build script
 
@@ -109,9 +117,9 @@ Each invocation creates an `artifacts\export-...` folder with a unique identifie
 
 Inside it, the script creates a separate LibreOffice **user profile**. That profile contains settings for this conversion process, including **Always Recalculate** for ODS and XLSX input. It does not change the settings of your normal LibreOffice profile.
 
-This matters because spreadsheets can store previously calculated formula results. We encountered that during development: changing an input in a file without recalculating its formulas can leave old results behind. The build explicitly requests recalculation before exporting.
+Spreadsheets can store previously calculated formula results. During development, I found that changing an input in a file without recalculating left old results behind. The build requests recalculation before exporting.
 
-The profile and exported CSV remain in the build folder so we can inspect what happened.
+The profile and exported CSV remain in the build folder for inspection.
 
 ### Load, recalculate, and export
 
@@ -125,7 +133,7 @@ The long command starting with `& $calc` launches LibreOffice. Its important pie
 | `--outdir ...` | Put the CSV in this build's export folder |
 | The final source path | Load the saved workbook |
 
-The CSV filter options select comma-separated UTF-8 text, calculated values rather than formula text, and sheet 2. These are the choices we made manually in lesson one. We can leave that option string alone for this exercise.
+The CSV filter options select comma-separated UTF-8 text, calculated values rather than formula text, and sheet 2. These match the manual export settings in lesson one. Leave the option string unchanged for this exercise.
 
 ### Check the export and call the converter
 
@@ -135,7 +143,7 @@ Immediately after LibreOffice runs, the script checks:
 if ($LASTEXITCODE -ne 0) { throw 'Calc export failed.' }
 ```
 
-**This checks LibreOffice's exit code.** Our generated program has not run yet. A successful LibreOffice export normally returns zero; the value 42 belongs to the program we run later.
+**This checks LibreOffice's exit code.** The generated program has not run yet. A successful LibreOffice export normally returns zero. The value 7 in the transcript comes from running program.exe afterward.
 
 The script also requires exactly one CSV in the new export folder. Then it invokes:
 
@@ -149,7 +157,7 @@ That call is the end of the build script. There is no command in it to run `prog
 
 ## 6. Inspect the intermediate CSV
 
-Automation has not hidden the intermediate result. Read the export path printed during the build, or list the recent export folders:
+Read the CSV path printed during the build, or list recent export folders:
 
 ```powershell
 Get-ChildItem .\artifacts -Directory -Filter 'export-*' |
@@ -159,7 +167,7 @@ Get-ChildItem .\artifacts -Directory -Filter 'export-*' |
 
 Inside the folder for the successful build, look for **assembler-Image.csv**. You can open it in a text editor and find the record with offset **513**, just as in lesson one.
 
-For an input of 9, that record should contain decimal `9` and hex `09`. For 42, it should contain `42` and `2A`.
+For the first input of 7, that record should contain decimal `7` and hex `07`. After changing the input to 9, it should contain `9` and `09`.
 
 The root-level **image.csv** from the manual lesson is not used by this build. Editing or inspecting that old file will not tell you what the latest automated build exported.
 
@@ -189,7 +197,7 @@ With the same workbook input and template, the manual and automated workflows pr
 | A successful build seems to return zero | Run the generated executable before reading `$LASTEXITCODE`; the build's export check concerns LibreOffice |
 | An output filename was customized | Run that filename, and check the converter's full destination path |
 
-Our workflow is now **edit, save, build, run, inspect**. We have automated the steps we already understand while retaining the spreadsheet and CSV as places to examine the actual machine-code bytes.
+The build script removes the manual export steps. The spreadsheet and each generated CSV remain available to inspect when a result differs from the expected value.
 
 ## Related files
 

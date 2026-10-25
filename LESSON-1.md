@@ -1,10 +1,10 @@
 # Lesson 1: assemble a Windows program with LibreOffice Calc
 
-We are going to use a spreadsheet to produce a small x86 program, save its calculated bytes as text, convert that text into a Windows executable, and run it. The program will exit with a number we choose. PowerShell will show us that number.
+Use LibreOffice Calc to encode a small x86 program, export its bytes as text, and convert the text into a Windows executable. Run the program from PowerShell and check its exit code.
 
-This exercise grew out of early-2000s DSP bring-up work: using a spreadsheet to encode enough instructions to exercise a processor before an assembler or compiler was available. This lesson demonstrates the idea on a PC. It uses a modern, explicit export process rather than claiming to reproduce the original DSP workflow.
+This exercise grew out of my early-2000s DSP bring-up work. My team was writing the debugger, a team down the hall was developing the assembler and disassemblers, and another team across town was writing the Verilog for the DSP ASICs. I used Excel to encode small test programs while the assembler was still being developed. This lesson demonstrates the technique on a PC with an explicit CSV export and byte-conversion step.
 
-Our first program has a deliberately small job. It does not open a window or print a message. It calls the Windows function `ExitProcess` with the value `42`. We will change that value later to demonstrate that the spreadsheet really controls the program.
+The program calls the Windows function `ExitProcess` with the value `42`. It prints nothing. After the first run, change the input and check that the exit code changes.
 
 ## What you need
 
@@ -13,9 +13,9 @@ Our first program has a deliberately small job. It does not open a window or pri
 - PowerShell.
 - The supplied `assembler.ods` workbook and `hex-to-exe.ps1` script, together in a working folder.
 
-No workbook macros, compiler, external assembler, or debugger are required. The workbook supplies a fixed Windows executable layout and formulas for the few instructions we need. It is a first assembler exercise, not a complete x86 assembler.
+No workbook macros, compiler, external assembler, or debugger are required. The workbook supplies a fixed Windows executable layout and formulas for the instructions in this example. It is a first assembler exercise, not a complete x86 assembler.
 
-For this lesson, perform the export yourself in Calc. We will use `build.ps1` to automate these same steps in lesson two.
+For this lesson, perform the export yourself in Calc. Lesson two uses `build.ps1` to automate the export and conversion.
 
 ## 1. Open the spreadsheet and choose an exit code
 
@@ -29,11 +29,11 @@ The instruction table is in rows **9–11**:
 
 | Column | What it shows |
 |---|---|
-| A — Offset | The instruction's starting byte offset within our code |
-| B — Instruction | A readable description of the instruction |
-| C — Operand | The value or address used by the instruction |
-| D — Length | The number of bytes in the instruction |
-| E–J — Bytes | The calculated machine-code bytes, displayed as decimal numbers |
+| A: Offset | The instruction's starting byte offset within the code |
+| B: Instruction | A readable description of the instruction |
+| C: Operand | The value or address used by the instruction |
+| D: Length | The number of bytes in the instruction |
+| E–J: Bytes | The calculated machine-code bytes, displayed as decimal numbers |
 
 The first row should show operand **42** and these five decimal bytes:
 
@@ -47,7 +47,11 @@ The hexadecimal view below the table shows the same bytes as:
 68  2A  00  00  00
 ```
 
-Hexadecimal is just another way of writing the same numbers: decimal `104` is hexadecimal `68`, and decimal `42` is hexadecimal `2A`.
+Decimal `104` is hexadecimal `68`. Decimal `42` is hexadecimal `2A`.
+
+![Assembler sheet with B4 set to 42 and the calculated instruction bytes](images/lesson1-img1.png)
+
+*B4 contains 42. The first instruction appears as decimal bytes in row 9 and hex bytes in row 15. The screenshot was taken after Save As CSV; reopen assembler.ods before editing again.*
 
 Only change **B4** during this exercise. The instruction names are labels; typing a different mnemonic into column B does not select a new instruction encoding.
 
@@ -84,7 +88,7 @@ Select the **Image** tab. It has four columns:
 
 There are **1,536 byte rows**, plus the header row. Each data row represents exactly one byte in the finished file.
 
-Our code is only 12 bytes long. The rest of the file contains Windows executable headers, import records, and padding required by this template's layout. Renaming a file containing just the instruction bytes to `.exe` would not provide those structures.
+This template's code is 12 bytes long. The rest of the file contains Windows executable headers, import records, and padding required by this template's layout. Renaming a file containing just the instruction bytes to `.exe` would not provide those structures.
 
 The code begins at **file offset 512**, which is **worksheet row 514** because the offset starts at zero and the sheet has a header row. Look at rows **514–518**:
 
@@ -97,6 +101,12 @@ The code begins at **file offset 512**, which is **worksheet row 514** because t
 | 518 | 516 | 0 | `00` |
 
 The instruction bytes in this sheet link to the Assembler sheet. The surrounding headers and import records are supplied as a fixed template.
+
+To find the code, click the Name Box to the left of the formula bar, enter **A514**, and press Enter.
+
+![Image sheet at row 514 showing the code beginning at file offset 512](images/lesson1-img2.png)
+
+*Columns A through D contain the file offset, decimal byte, hex byte, and region. The decimal and hex values touch visually in this capture: row 515 contains 42 in column B and 2A in column C. They are separate cells.*
 
 ### What the headers tell Windows
 
@@ -131,13 +141,13 @@ Here is the actual layout used by the workbook. All offsets and addresses below 
 | ExitProcess import address table entry | `0430` | `2030` | `00402030` |
 
 RVA means **relative virtual address**: the address relative to the loaded image's
-base. Thus our first instruction is at byte 512 in the file, but at address
+base. The first instruction is at byte 512 in the file, but at address
 `0x00401000` when loaded at this template's fixed base. The file sections are aligned
 to 512 bytes; their memory placement is aligned to 4,096 bytes. This accounts for
 the different offsets and some of the padding.
 
 The `CALL` instruction reads the function address from `0x00402030`. Windows fills
-that import table entry before our code runs. The headers and import records make
+that import table entry before the code runs. The headers and import records make
 that possible; the instruction stream alone would not.
 
 ## 4. Save the workbook, then manually export the CSV
@@ -160,7 +170,7 @@ With the **Image** tab selected:
 | Save cell content as shown, if offered | Checked |
 | Save cell formulas instead of calculated values, if offered | Unchecked |
 
-Export the entire selected sheet, including the header row. Accept a prompt explaining that CSV saves only the current sheet. That is why we selected **Image** first.
+Export the entire selected sheet, including the header row. Accept a prompt explaining that CSV saves only the current sheet. Select **Image** before exporting.
 
 CSV is a text snapshot of one sheet. It does not preserve the assembler's formulas or the other worksheet. After Save As, Calc may show the CSV filename as the current document. **Reopen assembler.ods for the next edit.**
 
@@ -176,11 +186,7 @@ Farther down, the record for offset 513 should contain `42` and `2A`.
 
 ## 5. Convert the hex text into an executable
 
-Open PowerShell in your working folder. For this project's current location:
-
-```powershell
-cd D:\source\repos\misc-projects\simple-excel-assembler
-```
+Open PowerShell in the folder containing the workbook and scripts. These examples use `C:\work\simple-spreadsheet-assembler`; substitute your own project folder. The transcript paths have been shortened for readability.
 
 Run the converter:
 
@@ -211,9 +217,19 @@ The program itself prints nothing. The second command should display:
 42
 ```
 
-`$LASTEXITCODE` contains the exit code of the most recently run native program. Read it immediately after running our executable. Here, 42 is the deliberate result of our test program.
+`$LASTEXITCODE` contains the exit code of the most recently run native program. Read it immediately after running the executable. The expected result for this input is 42.
 
-You have now taken an operand in a spreadsheet, turned it into instruction bytes, written a valid Windows executable, and run those instructions on the PC.
+```text
+PS C:\work\simple-spreadsheet-assembler> .\hex-to-exe.ps1 -Csv .\image.csv -Output .\program.exe
+Wrote 1536 bytes to C:\work\simple-spreadsheet-assembler\program.exe
+PS C:\work\simple-spreadsheet-assembler> .\program.exe
+PS C:\work\simple-spreadsheet-assembler> $LASTEXITCODE
+42
+```
+
+*The converter reports the output path. Running that executable produces exit code 42. The transcript shows the commands in execution order.*
+
+The exit code checks that the executable ran with the operand entered in Calc.
 
 ## 7. Change the result
 
@@ -258,10 +274,10 @@ Use the current converter supplied with this lesson. An earlier version resolved
 
 ## Next lesson
 
-Now that each step is visible, we can automate the repetitive work. [Lesson two](LESSON-2.md) introduces `build.ps1`, which asks LibreOffice to recalculate and export the saved workbook, then calls the same converter. The spreadsheet will continue to perform the instruction encoding.
+The export and conversion can now be automated. [Lesson two](LESSON-2.md) introduces `build.ps1`, which asks LibreOffice to recalculate and export the saved workbook, then calls the same converter. The spreadsheet will continue to perform the instruction encoding.
 
 ## Technical references
 
-- [Microsoft: PE format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format) — the executable headers, sections, and import structures.
-- [Microsoft: ExitProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitprocess) — the Windows function used to terminate the process with an exit code.
-- [LibreOffice: importing and exporting CSV files](https://help.libreoffice.org/latest/en-US/text/scalc/guide/csv_files.html) — saving a sheet as text.
+- [Microsoft: PE format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format): the executable headers, sections, and import structures.
+- [Microsoft: ExitProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitprocess): the Windows function used to terminate the process with an exit code.
+- [LibreOffice: importing and exporting CSV files](https://help.libreoffice.org/latest/en-US/text/scalc/guide/csv_files.html): saving a sheet as text.
