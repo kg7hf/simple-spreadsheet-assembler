@@ -1,7 +1,8 @@
-param([Parameter(Mandatory)][string]$Csv, [Parameter(Mandatory)][string]$Output)
+param([Parameter(Mandatory)][string]$Csv, [Parameter(Mandatory)][string]$Output,
+      [ValidateRange(512,1048576)][int]$ExpectedBytes = 1536)
 $ErrorActionPreference = 'Stop'
 $rows = @(Import-Csv -LiteralPath $Csv)
-if ($rows.Count -ne 1536) { throw 'Expected 1536 byte rows for this fixed PE32 layout.' }
+if ($rows.Count -ne $ExpectedBytes) { throw "Expected $ExpectedBytes byte rows for the selected PE32 layout." }
 $bytes = New-Object byte[] $rows.Count
 for ($i=0; $i -lt $rows.Count; $i++) {
     $row = $rows[$i]

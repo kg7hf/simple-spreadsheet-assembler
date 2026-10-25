@@ -53,7 +53,24 @@ It does not run the executable; the last two commands remain explicit.
 The automation uses a separate LibreOffice profile and retains CSV exports under
 `artifacts/`. The spreadsheet still performs the instruction encoding.
 
-## What Calc assembles
+## Lesson 3: console input, arithmetic, and subroutines
+
+[Lesson 3](LESSON-3.md) uses a separate **console-add.ods** workbook to assemble an
+interactive console calculator. It reads two unsigned decimal numbers, adds them,
+and prints the result. Calc resolves code labels, calculates relative calls and
+jumps, and encodes data addresses. The workbook includes `write_string`,
+`read_number`, and `print_number` subroutines.
+
+```powershell
+.\build.ps1 -Workbook .\console-add.ods -Output .\console-add.exe -ExpectedBytes 3584
+.\console-add.exe
+```
+
+Enter `123` and `456` at the prompts. The program prints `123 + 456 = 579` and
+exits with status zero. Each input accepts one through nine decimal digits.
+The original workbook and the default build command still serve lessons one and two.
+
+## What the first workbook assembles
 
 This first lesson uses fixed instruction templates, not a general mnemonic parser:
 
@@ -102,8 +119,9 @@ Changing instruction sizes or addresses requires updating the template too.
 
 The root folder contains the files readers need:
 
-- `assembler.ods`: the Calc workbook used in both lessons.
-- `LESSON-1.md` and `LESSON-2.md`: the manual and automated workflows.
+- `assembler.ods`: the Calc workbook used in the first two lessons.
+- `console-add.ods`: the labeled console calculator used in lesson three.
+- `LESSON-1.md`, `LESSON-2.md`, and `LESSON-3.md`: the guided exercises.
 - `hex-to-exe.ps1`: the CSV-to-binary converter used in lesson one.
 - `build.ps1`: the automation introduced in lesson two.
 

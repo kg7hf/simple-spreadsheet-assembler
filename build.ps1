@@ -1,4 +1,5 @@
-param([string]$Workbook = "$PSScriptRoot\assembler.ods", [string]$Output = "$PSScriptRoot\program.exe")
+param([string]$Workbook = "$PSScriptRoot\assembler.ods", [string]$Output = "$PSScriptRoot\program.exe",
+      [ValidateRange(512,1048576)][int]$ExpectedBytes = 1536)
 $ErrorActionPreference = 'Stop'
 $calc = 'C:\Program Files\LibreOffice\program\soffice.com'
 if (!(Test-Path -LiteralPath $calc)) { throw 'LibreOffice is required at C:\Program Files\LibreOffice.' }
@@ -18,4 +19,4 @@ $profile = ([uri](Join-Path $run 'profile')).AbsoluteUri
 if ($LASTEXITCODE -ne 0) { throw 'Calc export failed.' }
 $csv = @(Get-ChildItem -LiteralPath $run -Filter '*.csv')
 if ($csv.Count -ne 1) { throw 'Expected exactly one Image CSV export.' }
-& "$PSScriptRoot\hex-to-exe.ps1" -Csv $csv[0].FullName -Output $Output
+& "$PSScriptRoot\hex-to-exe.ps1" -Csv $csv[0].FullName -Output $Output -ExpectedBytes $ExpectedBytes

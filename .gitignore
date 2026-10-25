@@ -3,4 +3,5 @@ artifacts/
 .~lock.*#
 *.exe
 /image.csv
+/console-add-image.csv
 /dev/
